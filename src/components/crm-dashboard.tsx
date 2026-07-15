@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { BootstrapPayload, InboxConversation, MessageRow } from "@/lib/crm/types";
 import { AlertCircle, Bot, CheckCheck, Clock3, Inbox, MessageSquarePlus, RefreshCcw, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
@@ -29,6 +29,20 @@ function badgeClass(status: string) {
   return statusStyles[status] ?? "bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30";
 }
 
+function directionBadge(direction?: string | null) {
+  return direction === "outbound"
+    ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
+    : "bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/30";
+}
+
+function conversationKey(item: InboxConversation) {
+  return item.phone_number?.trim() || item.chat_jid.trim();
+}
+
+function conversationSubtitle(item: InboxConversation) {
+  return item.phone_number?.trim() || item.chat_jid;
+}
+
 export function CrmDashboard({ initialData }: { initialData: BootstrapPayload }) {
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
@@ -36,6 +50,32 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   const [connectionState, setConnectionState] = useState<"mock" | "supabase" | "checking">(
     initialData.source === "supabase" ? "checking" : "mock",
   );
+  const selectedConversationIdRef = useRef<number | null>(initialData.selectedConversationId);
+
+  const normalizedConversations = useMemo(() => {
+    const sorted = [...data.conversations].sort((a, b) => {
+      const at = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const bt = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return bt - at;
+    });
+
+    const map = new Map<string, InboxConversation>();
+    for (const item of sorted) {
+      const key = conversationKey(item);
+      const current = map.get(key);
+      if (!current) {
+        map.set(key, item);
+        continue;
+      }
+      const currentTime = current.last_message_at ? new Date(current.last_message_at).getTime() : 0;
+      const nextTime = item.last_message_at ? new Date(item.last_message_at).getTime() : 0;
+      if (nextTime >= currentTime) {
+        map.set(key, item);
+      }
+    }
+
+    return Array.from(map.values());
+  }, [data.conversations]);
 
   const activeConversation = useMemo(
     () => data.conversations.find((item) => item.conversation_id === data.selectedConversationId) ?? null,
@@ -44,9 +84,9 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
 
   const filteredConversations = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return data.conversations;
+    if (!term) return normalizedConversations;
 
-    return data.conversations.filter((item) => {
+    return normalizedConversations.filter((item) => {
       const haystack = [
         item.title,
         item.display_name,
@@ -61,23 +101,24 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [data.conversations, query]);
+  }, [normalizedConversations, query]);
 
-  async function loadConversation(conversationId: number) {
-    setLoadingConversation(true);
-    try {
-      const response = await fetch(`/api/bootstrap?conversationId=${conversationId}`, { cache: "no-store" });
-      const payload: BootstrapPayload = await response.json();
-      setData((current) => ({
-        ...payload,
-        conversations: payload.conversations.length ? payload.conversations : current.conversations,
-      }));
-    } finally {
-      setLoadingConversation(false);
-    }
+  useEffect(() => {
+    selectedConversationIdRef.current = data.selectedConversationId;
+  }, [data.selectedConversationId]);
+
+  async function refreshInboxList() {
+    const response = await fetch(`/api/bootstrap`, { cache: "no-store" });
+    const payload: BootstrapPayload = await response.json();
+    setData((current) => ({
+      ...current,
+      ...payload,
+      selectedConversationId: current.selectedConversationId ?? payload.selectedConversationId,
+      messages: current.messages,
+    }));
   }
 
-  async function refreshSelectedConversation(conversationId = data.selectedConversationId) {
+  async function refreshSelectedConversation(conversationId = selectedConversationIdRef.current) {
     if (!conversationId) return;
     const response = await fetch(`/api/bootstrap?conversationId=${conversationId}`, { cache: "no-store" });
     const payload: BootstrapPayload = await response.json();
@@ -86,7 +127,18 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
       ...payload,
       conversations: payload.conversations.length ? payload.conversations : current.conversations,
       messages: payload.messages.length ? payload.messages : current.messages,
+      selectedConversationId: conversationId,
     }));
+  }
+
+  async function loadConversation(conversationId: number) {
+    selectedConversationIdRef.current = conversationId;
+    setLoadingConversation(true);
+    try {
+      await Promise.all([refreshInboxList(), refreshSelectedConversation(conversationId)]);
+    } finally {
+      setLoadingConversation(false);
+    }
   }
 
   useEffect(() => {
@@ -105,22 +157,25 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         async (payload) => {
           const inserted = payload.new as MessageRow;
-          const activeId = data.selectedConversationId;
+          const activeId = selectedConversationIdRef.current;
 
           if (activeId && inserted.conversation_id === activeId) {
             setData((current) => ({
               ...current,
               messages: [...current.messages, { ...inserted, from_me: inserted.direction === "outbound" }],
             }));
+            await Promise.all([refreshInboxList(), refreshSelectedConversation(activeId)]);
+            return;
           }
 
-          await refreshSelectedConversation(activeId ?? inserted.conversation_id ?? undefined);
+          await refreshInboxList();
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_conversations" },
         async () => {
+          await refreshInboxList();
           await refreshSelectedConversation();
         },
       )
@@ -216,6 +271,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                           {conversation.is_group ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-200">grupo</span> : null}
                         </div>
                         <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{conversation.last_message_text ?? "Sin mensajes"}</p>
+                        <p className="mt-1 truncate text-[11px] text-zinc-500">{conversationSubtitle(conversation)}</p>
                       </div>
                       <div className="text-right text-[11px] text-zinc-500">
                         <div>{formatTime(conversation.last_message_at)}</div>
@@ -260,11 +316,14 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                 <div className="space-y-4">
                   {data.messages.map((message) => {
                     const outgoing = message.from_me ?? message.direction === "outbound";
+                    const direction = outgoing ? "Salida" : "Entrada";
                     return (
                       <div key={message.id} className={`flex ${outgoing ? "justify-end" : "justify-start"}`}>
                         <div className={`max-w-[78%] rounded-3xl px-4 py-3 shadow-lg ${outgoing ? "bg-emerald-500 text-white" : "bg-white/6 text-zinc-100 ring-1 ring-white/10"}`}>
                           <div className="mb-1 flex items-center gap-2 text-[11px] opacity-80">
                             <span>{outgoing ? "Tú" : message.sender_name ?? "Cliente"}</span>
+                            <span>·</span>
+                            <span>{direction}</span>
                             <span>·</span>
                             <span>{formatTime(message.message_timestamp ?? message.received_at)}</span>
                           </div>
@@ -301,6 +360,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-emerald-300/80">Contacto</p>
               <h3 className="mt-1 text-lg font-semibold text-white">{activeConversation?.title ?? activeConversation?.display_name ?? "—"}</h3>
+              <p className="mt-1 text-xs text-zinc-500">{activeConversation?.chat_jid ?? "—"}</p>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex items-start justify-between gap-4"><dt className="text-zinc-400">Número</dt><dd className="text-right text-white">{activeConversation?.phone_number ?? "—"}</dd></div>
                 <div className="flex items-start justify-between gap-4"><dt className="text-zinc-400">Push name</dt><dd className="text-right text-white">{activeConversation?.push_name ?? "—"}</dd></div>
