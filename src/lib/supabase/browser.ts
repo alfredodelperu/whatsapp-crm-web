@@ -1,12 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { getSupabasePublicKey, getSupabaseUrl } from "./env";
 
 export function createBrowserSupabaseClient() {
-  if (!supabaseUrl || !supabaseAnonKey) {
+  const supabaseUrl = getSupabaseUrl();
+  const supabasePublicKey = getSupabasePublicKey();
+
+  if (!supabaseUrl || !supabasePublicKey) {
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient(supabaseUrl, supabasePublicKey);
 }
