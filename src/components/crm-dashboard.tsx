@@ -114,7 +114,6 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
       ...current,
       ...payload,
       selectedConversationId: current.selectedConversationId ?? payload.selectedConversationId,
-      messages: current.messages,
     }));
   }
 
