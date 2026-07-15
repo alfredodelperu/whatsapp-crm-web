@@ -126,7 +126,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
       ...current,
       ...payload,
       conversations: payload.conversations.length ? payload.conversations : current.conversations,
-      messages: payload.messages.length ? payload.messages : current.messages,
+      messages: payload.messages,
       selectedConversationId: conversationId,
     }));
   }
@@ -317,6 +317,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                   {data.messages.map((message) => {
                     const outgoing = message.from_me ?? message.direction === "outbound";
                     const direction = outgoing ? "Salida" : "Entrada";
+                    const body = message.message_text || message.caption || (message.message_type ? `[${message.message_type}]` : "[sin texto]");
                     return (
                       <div key={message.id} className={`flex ${outgoing ? "justify-end" : "justify-start"}`}>
                         <div className={`max-w-[78%] rounded-3xl px-4 py-3 shadow-lg ${outgoing ? "bg-emerald-500 text-white" : "bg-white/6 text-zinc-100 ring-1 ring-white/10"}`}>
@@ -327,7 +328,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                             <span>·</span>
                             <span>{formatTime(message.message_timestamp ?? message.received_at)}</span>
                           </div>
-                          <p className="whitespace-pre-wrap text-sm leading-6">{message.message_text || message.caption || "[sin texto]"}</p>
+                          <p className="whitespace-pre-wrap text-sm leading-6">{body}</p>
                           <div className="mt-2 flex items-center justify-end gap-1 text-[11px] opacity-80">
                             {outgoing ? <CheckCheck className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
                             <span className="uppercase tracking-[0.16em]">{message.message_status || "received"}</span>
