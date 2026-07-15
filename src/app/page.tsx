@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description: "Panel web realtime para conversaciones de WhatsApp conectado a Supabase.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function Page() {
   const data = await getBootstrapData();
   return <CrmDashboard initialData={data} />;
