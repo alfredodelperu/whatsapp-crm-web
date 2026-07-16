@@ -40,10 +40,15 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
   const conversations = (inboxResult.data ?? []) as InboxConversation[];
   const selectedConversationId = conversationId ?? conversations[0]?.conversation_id ?? null;
   const messages: MessageRow[] = conversationId
-    ? ((messagesResult as { data: MessageRow[] | null }).data ?? []).map((row) => ({
-        ...row,
-        from_me: row.direction === "outbound",
-      }))
+    ? ((messagesResult as { data: MessageRow[] | null }).data ?? [])
+        .map((row) => ({
+          ...row,
+          from_me: row.direction === "outbound",
+        }))
+        .filter((row) => {
+          if (row.message_type !== "protocolMessage") return true;
+          return Boolean((row.message_text && row.message_text.trim()) || (row.caption && row.caption.trim()));
+        })
     : [];
 
   return {
