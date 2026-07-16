@@ -10,7 +10,15 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function Page() {
-  const data = await getBootstrapData();
+type PageProps = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
+  const rawConversationId = searchParams?.conversationId;
+  const conversationId = Array.isArray(rawConversationId)
+    ? Number(rawConversationId[0])
+    : Number(rawConversationId);
+  const data = await getBootstrapData(Number.isFinite(conversationId) ? conversationId : undefined);
   return <CrmDashboard initialData={data} />;
 }

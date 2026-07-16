@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { BootstrapPayload, InboxConversation, MessageRow } from "@/lib/crm/types";
 import { AlertCircle, Bot, CheckCheck, Clock3, Inbox, MessageSquarePlus, RefreshCcw, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
@@ -58,6 +59,9 @@ function renderMessageBody(message: MessageRow) {
 }
 
 export function CrmDashboard({ initialData }: { initialData: BootstrapPayload }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
   const [loadingConversation, setLoadingConversation] = useState(false);
@@ -151,6 +155,9 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     try {
       await refreshSelectedConversation(conversationId);
       await refreshInboxList();
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("conversationId", String(conversationId));
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     } finally {
       setLoadingConversation(false);
     }
