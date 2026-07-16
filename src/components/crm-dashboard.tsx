@@ -43,6 +43,20 @@ function conversationSubtitle(item: InboxConversation) {
   return item.phone_number?.trim() || item.chat_jid;
 }
 
+function safePreviewText(value?: string | null) {
+  const text = value?.trim();
+  if (!text) return "Sin mensajes";
+  if (text === "protocolMessage" || text === "[protocolMessage]") return "Mensaje del sistema";
+  return text;
+}
+
+function renderMessageBody(message: MessageRow) {
+  const directText = message.message_text?.trim() || message.caption?.trim();
+  if (directText) return directText;
+  if (message.message_type === "protocolMessage") return "Mensaje del sistema";
+  return message.message_type ? `[${message.message_type}]` : "[sin texto]";
+}
+
 export function CrmDashboard({ initialData }: { initialData: BootstrapPayload }) {
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
@@ -270,7 +284,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                           <p className="font-medium text-white">{conversation.title ?? conversation.display_name ?? conversation.chat_jid}</p>
                           {conversation.is_group ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-200">grupo</span> : null}
                         </div>
-                        <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{conversation.last_message_text ?? "Sin mensajes"}</p>
+                        <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{safePreviewText(conversation.last_message_text)}</p>
                         <p className="mt-1 truncate text-[11px] text-zinc-500">{conversationSubtitle(conversation)}</p>
                       </div>
                       <div className="text-right text-[11px] text-zinc-500">
@@ -317,7 +331,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                   {data.messages.map((message) => {
                     const outgoing = message.from_me ?? message.direction === "outbound";
                     const direction = outgoing ? "Salida" : "Entrada";
-                    const body = message.message_text || message.caption || (message.message_type ? `[${message.message_type}]` : "[sin texto]");
+                    const body = renderMessageBody(message);
                     return (
                       <div key={message.id} className={`flex ${outgoing ? "justify-end" : "justify-start"}`}>
                         <div className={`max-w-[78%] rounded-3xl px-4 py-3 shadow-lg ${outgoing ? "bg-emerald-500 text-white" : "bg-white/6 text-zinc-100 ring-1 ring-white/10"}`}>
