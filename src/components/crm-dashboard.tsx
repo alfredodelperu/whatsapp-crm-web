@@ -48,7 +48,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   const [query, setQuery] = useState("");
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [connectionState, setConnectionState] = useState<"mock" | "supabase" | "checking">(
-    initialData.source === "supabase" ? "checking" : "mock",
+    initialData.source === "supabase" ? "supabase" : "mock",
   );
   const selectedConversationIdRef = useRef<number | null>(initialData.selectedConversationId);
 
@@ -113,6 +113,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     setData((current) => ({
       ...current,
       ...payload,
+      messages: current.messages,
       selectedConversationId: current.selectedConversationId ?? payload.selectedConversationId,
     }));
   }
@@ -134,7 +135,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     selectedConversationIdRef.current = conversationId;
     setLoadingConversation(true);
     try {
-      await Promise.all([refreshInboxList(), refreshSelectedConversation(conversationId)]);
+      await refreshSelectedConversation(conversationId);
+      await refreshInboxList();
     } finally {
       setLoadingConversation(false);
     }
@@ -143,7 +145,6 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   useEffect(() => {
     const client = createBrowserSupabaseClient();
     if (!client) {
-      setConnectionState("mock");
       return;
     }
 
