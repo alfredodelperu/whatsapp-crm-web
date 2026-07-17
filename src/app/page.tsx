@@ -11,11 +11,12 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function Page({ searchParams }: PageProps) {
-  const rawConversationId = searchParams?.conversationId;
+  const params = (await searchParams) ?? {};
+  const rawConversationId = params.conversationId;
   const conversationId = Array.isArray(rawConversationId)
     ? Number(rawConversationId[0])
     : Number(rawConversationId);

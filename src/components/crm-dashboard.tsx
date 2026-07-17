@@ -47,8 +47,23 @@ function conversationSubtitle(item: InboxConversation) {
 function safePreviewText(value?: string | null) {
   const text = value?.trim();
   if (!text) return "Sin mensajes";
-  if (text === "protocolMessage" || text === "[protocolMessage]") return "Mensaje del sistema";
-  return text;
+
+  const normalized = text.toLowerCase();
+  const previewMap: Record<string, string> = {
+    protocolmessage: "Mensaje del sistema",
+    "[protocolmessage]": "Mensaje del sistema",
+    imagemessage: "Foto",
+    videomessage: "Video",
+    audiomessage: "Audio",
+    documentmessage: "Archivo",
+    reactionmessage: "Reacción",
+    listresponsemessage: "Respuesta de lista",
+    buttonsresponsemessage: "Respuesta de botones",
+    interactiveresponsemessage: "Respuesta interactiva",
+    templatemessage: "Mensaje de plantilla",
+  };
+
+  return previewMap[normalized] ?? text;
 }
 
 function renderMessageBody(message: MessageRow) {
@@ -96,8 +111,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   }, [data.conversations]);
 
   const activeConversation = useMemo(
-    () => data.conversations.find((item) => item.conversation_id === data.selectedConversationId) ?? null,
-    [data.conversations, data.selectedConversationId],
+    () => normalizedConversations.find((item) => item.conversation_id === data.selectedConversationId) ?? null,
+    [normalizedConversations, data.selectedConversationId],
   );
 
   const filteredConversations = useMemo(() => {
@@ -125,14 +140,14 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     selectedConversationIdRef.current = data.selectedConversationId;
   }, [data.selectedConversationId]);
 
-  async function refreshInboxList() {
+  async function refreshInboxList(selectedConversationId = selectedConversationIdRef.current) {
     const response = await fetch(`/api/bootstrap`, { cache: "no-store" });
     const payload: BootstrapPayload = await response.json();
     setData((current) => ({
       ...current,
       ...payload,
       messages: current.messages,
-      selectedConversationId: current.selectedConversationId ?? payload.selectedConversationId,
+      selectedConversationId: selectedConversationId ?? current.selectedConversationId ?? payload.selectedConversationId,
     }));
   }
 
@@ -154,7 +169,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     setLoadingConversation(true);
     try {
       await refreshSelectedConversation(conversationId);
-      await refreshInboxList();
+      await refreshInboxList(conversationId);
       const params = new URLSearchParams(searchParams.toString());
       params.set("conversationId", String(conversationId));
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
