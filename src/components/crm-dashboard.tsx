@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { BootstrapPayload, InboxConversation, MessageRow } from "@/lib/crm/types";
-import { AlertCircle, Bot, CheckCheck, Clock3, Inbox, MessageSquarePlus, RefreshCcw, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { AlertCircle, Bot, CheckCheck, Clock3, Inbox, MessageSquarePlus, RefreshCcw, Search, ShieldCheck, Sparkles, Users, Send, Loader2 } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
   open: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
@@ -89,6 +89,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [connectionState, setConnectionState] = useState<"mock" | "supabase" | "checking">(
     initialData.source === "supabase" ? "supabase" : "mock",
   );
@@ -196,6 +198,40 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     } finally {
       setLoadingConversation(false);
+    }
+  }
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text || !activeConversation) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instance: activeConversation.instance_name,
+          number: activeConversation.phone_number || activeConversation.chat_jid,
+          text: text,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Unknown error" }));
+        alert(`Error al enviar: ${err.error}`);
+        return;
+      }
+
+      setDraft("");
+      // Refresh the UI to show the message, or rely on realtime
+      // We do a fast refresh to fetch it immediately if realtime takes a second
+      setTimeout(() => refreshSelectedConversation(), 1000);
+    } catch (err: any) {
+      alert(`Error de red: ${err.message}`);
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -408,10 +444,23 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
             </div>
 
             <div className="border-t border-white/10 p-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
-                <MessageSquarePlus className="h-4 w-4 text-emerald-300" />
-                <span>Bloque de respuesta listo para conectar envío saliente desde Evolution / WhatsApp API.</span>
-              </div>
+              <form onSubmit={handleSend} className="relative flex items-center">
+                <input
+                  type="text"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Escribe un mensaje..."
+                  disabled={isSending || !activeConversation}
+                  className="w-full rounded-full border border-white/10 bg-white/5 py-3 pl-5 pr-14 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-emerald-500/50 focus:bg-white/10 disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={!draft.trim() || isSending || !activeConversation}
+                  className="absolute right-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-400 disabled:bg-white/10 disabled:text-zinc-500"
+                >
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </button>
+              </form>
             </div>
           </section>
 
