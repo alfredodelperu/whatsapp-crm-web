@@ -288,8 +288,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.18),_transparent_30%),linear-gradient(180deg,#04140e_0%,#071c14_45%,#0b0f10_100%)] text-zinc-100">
-      <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col px-4 py-4 lg:px-6">
+    <div className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.18),_transparent_30%),linear-gradient(180deg,#04140e_0%,#071c14_45%,#0b0f10_100%)] text-zinc-100">
+      <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col px-4 py-4 lg:px-6">
         <header className="mb-4 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-emerald-300/80">DTF UV Perú · CRM realtime</p>
@@ -328,8 +328,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
           })}
         </section>
 
-        <main className="mt-4 grid flex-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)_320px]">
-          <aside className="flex min-h-[740px] flex-col rounded-3xl border border-white/10 bg-[#071614]/90 shadow-2xl shadow-black/20 backdrop-blur">
+        <main className="mt-4 grid min-h-0 flex-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)_320px]">
+          <aside className="flex min-h-0 flex-col rounded-3xl border border-white/10 bg-[#071614]/90 shadow-2xl shadow-black/20 backdrop-blur">
             <div className="border-b border-white/10 p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -385,7 +385,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
             </div>
           </aside>
 
-          <section className="flex min-h-[740px] flex-col rounded-3xl border border-white/10 bg-[#081614]/90 shadow-2xl shadow-black/20 backdrop-blur">
+          <section className="flex min-h-0 flex-col rounded-3xl border border-white/10 bg-[#081614]/90 shadow-2xl shadow-black/20 backdrop-blur">
             <div className="flex items-center justify-between border-b border-white/10 p-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-emerald-300/80">Chat activo</p>
