@@ -2,12 +2,12 @@ import { mockBootstrap } from "./mock";
 import type { BootstrapPayload, InboxConversation, MessageRow, SummaryStats } from "./types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-function computeStats(conversations: InboxConversation[], messages: MessageRow[]): SummaryStats {
+function computeStats(conversations: InboxConversation[], messages24hCount: number): SummaryStats {
   return {
     instances: new Set(conversations.map((item) => item.instance_id)).size,
     conversations: conversations.length,
     unread: conversations.reduce((sum, item) => sum + (item.unread_count ?? 0), 0),
-    messages24h: messages.length,
+    messages24h: messages24hCount,
   };
 }
 
@@ -17,7 +17,7 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
     return mockBootstrap;
   }
 
-  const [inboxResult, messagesResult] = await Promise.all([
+  const [inboxResult, messagesResult, messages24hResult] = await Promise.all([
     supabase
       .from("whatsapp_inbox")
       .select("conversation_id,instance_id,instance_name,chat_jid,contact_jid,title,last_message_text,last_message_at,unread_count,status,assigned_to_user_id,phone_number,display_name,push_name,is_group")
@@ -31,6 +31,10 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
           .order("message_timestamp", { ascending: true })
           .limit(200)
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("whatsapp_messages")
+      .select("*", { count: "exact", head: true })
+      .gte("received_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
   ]);
 
   if (inboxResult.error) {
@@ -51,11 +55,13 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
         })
     : [];
 
+  const messages24hCount = messages24hResult.count ?? 0;
+
   return {
     source: "supabase",
     generatedAt: new Date().toISOString(),
     selectedConversationId,
-    stats: computeStats(conversations, messages),
+    stats: computeStats(conversations, messages24hCount),
     conversations,
     messages,
   };

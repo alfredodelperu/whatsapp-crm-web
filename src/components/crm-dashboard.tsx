@@ -61,6 +61,15 @@ function safePreviewText(value?: string | null) {
     buttonsresponsemessage: "Respuesta de botones",
     interactiveresponsemessage: "Respuesta interactiva",
     templatemessage: "Mensaje de plantilla",
+    image: "Foto",
+    video: "Video",
+    audio: "Audio",
+    document: "Archivo",
+    sticker: "Sticker",
+    contact: "Contacto",
+    location: "Ubicación",
+    poll: "Encuesta",
+    reaction: "Reacción",
   };
 
   return previewMap[normalized] ?? text;
@@ -84,6 +93,11 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     initialData.source === "supabase" ? "supabase" : "mock",
   );
   const selectedConversationIdRef = useRef<number | null>(initialData.selectedConversationId);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [data.messages]);
 
   const normalizedConversations = useMemo(() => {
     const sorted = [...data.conversations].sort((a, b) => {
@@ -170,6 +184,13 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     try {
       await refreshSelectedConversation(conversationId);
       await refreshInboxList(conversationId);
+      
+      fetch(`/api/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId }),
+      }).catch(console.error);
+
       const params = new URLSearchParams(searchParams.toString());
       params.set("conversationId", String(conversationId));
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -373,6 +394,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                       </div>
                     );
                   })}
+                  <div ref={messagesEndRef} />
                 </div>
               ) : (
                 <div className="flex h-full min-h-[480px] flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 px-6 text-center">
