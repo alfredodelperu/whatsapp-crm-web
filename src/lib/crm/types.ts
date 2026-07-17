@@ -21,6 +21,11 @@ export type InboxConversation = {
   display_name: string | null;
   push_name: string | null;
   is_group: boolean;
+  labels?: Array<{
+    id: number;
+    name: string;
+    color: number;
+  }>;
 };
 
 export type MessageRow = {

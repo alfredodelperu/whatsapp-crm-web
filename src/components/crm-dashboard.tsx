@@ -30,6 +30,30 @@ function badgeClass(status: string) {
   return statusStyles[status] ?? "bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30";
 }
 
+const labelColors = [
+  "bg-red-500/15 text-red-300 ring-1 ring-red-500/30",
+  "bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/30",
+  "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
+  "bg-yellow-500/15 text-yellow-300 ring-1 ring-yellow-500/30",
+  "bg-lime-500/15 text-lime-300 ring-1 ring-lime-500/30",
+  "bg-green-500/15 text-green-300 ring-1 ring-green-500/30",
+  "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
+  "bg-teal-500/15 text-teal-300 ring-1 ring-teal-500/30",
+  "bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30",
+  "bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30",
+  "bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30",
+  "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/30",
+  "bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30",
+  "bg-purple-500/15 text-purple-300 ring-1 ring-purple-500/30",
+  "bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-fuchsia-500/30",
+  "bg-pink-500/15 text-pink-300 ring-1 ring-pink-500/30",
+  "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30"
+];
+
+function getLabelColor(colorId: number) {
+  return labelColors[colorId % labelColors.length];
+}
+
 function directionBadge(direction?: string | null) {
   return direction === "outbound"
     ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
@@ -375,9 +399,14 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium capitalize ${badgeClass(conversation.status)}`}>{conversation.status}</span>
-                      <span className="text-[11px] text-zinc-500">{conversation.instance_name}</span>
+                      {conversation.labels?.map((label) => (
+                        <span key={label.id} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getLabelColor(label.color)}`}>
+                          {label.name}
+                        </span>
+                      ))}
+                      <span className="ml-auto text-[11px] text-zinc-500">{conversation.instance_name}</span>
                     </div>
                   </button>
                 );
@@ -474,6 +503,18 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                 <div className="flex items-start justify-between gap-4"><dt className="text-zinc-400">Push name</dt><dd className="text-right text-white">{activeConversation?.push_name ?? "—"}</dd></div>
                 <div className="flex items-start justify-between gap-4"><dt className="text-zinc-400">Estado</dt><dd className="text-right text-white">{activeConversation?.status ?? "—"}</dd></div>
                 <div className="flex items-start justify-between gap-4"><dt className="text-zinc-400">Asignado</dt><dd className="text-right text-white">{activeConversation?.assigned_to_user_id ?? "Sin asignar"}</dd></div>
+                {activeConversation?.labels && activeConversation.labels.length > 0 && (
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-zinc-400">Etiquetas</dt>
+                    <dd className="flex flex-wrap justify-end gap-1.5">
+                      {activeConversation.labels.map((label) => (
+                        <span key={label.id} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getLabelColor(label.color)}`}>
+                          {label.name}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
               </dl>
             </div>
 

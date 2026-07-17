@@ -57,6 +57,30 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
 
   const messages24hCount = messages24hResult.count ?? 0;
 
+  // Fetch labels
+  const conversationIds = conversations.map((c) => c.conversation_id);
+  if (conversationIds.length > 0) {
+    const { data: labelsData } = await supabase
+      .from("whatsapp_chat_labels")
+      .select("conversation_id, whatsapp_labels(id, name, color)")
+      .in("conversation_id", conversationIds);
+
+    if (labelsData) {
+      const labelsByConvId: Record<number, any[]> = {};
+      for (const item of labelsData) {
+        if (!labelsByConvId[item.conversation_id]) {
+          labelsByConvId[item.conversation_id] = [];
+        }
+        if (item.whatsapp_labels) {
+          labelsByConvId[item.conversation_id].push(item.whatsapp_labels);
+        }
+      }
+      for (const conv of conversations) {
+        conv.labels = labelsByConvId[conv.conversation_id] || [];
+      }
+    }
+  }
+
   return {
     source: "supabase",
     generatedAt: new Date().toISOString(),
