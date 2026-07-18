@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Ghost, Beaker, Mouse, Book, Armchair, Play, RotateCcw, Trophy, Zap, AlertCircle } from "lucide-react";
+import { Ghost, FlaskConical, Rat, Book, Armchair, Play, RotateCcw, Trophy, Zap, AlertCircle } from "lucide-react";
 
 type TrueObject = {
   id: string;
@@ -14,16 +14,16 @@ type TrueObject = {
 
 const TRUE_OBJECTS: TrueObject[] = [
   { id: "ghost", shape: "ghost", color: "white", label: "Fantasma", icon: Ghost, colorHex: "#ffffff" },
-  { id: "bottle", shape: "bottle", color: "green", label: "Botella", icon: Beaker, colorHex: "#22c55e" },
-  { id: "mouse", shape: "mouse", color: "grey", label: "Ratón", icon: Mouse, colorHex: "#71717a" },
+  { id: "bottle", shape: "bottle", color: "green", label: "Botella", icon: FlaskConical, colorHex: "#22c55e" },
+  { id: "mouse", shape: "mouse", color: "grey", label: "Ratón", icon: Rat, colorHex: "#71717a" },
   { id: "book", shape: "book", color: "blue", label: "Libro", icon: Book, colorHex: "#3b82f6" },
   { id: "chair", shape: "chair", color: "red", label: "Sillón", icon: Armchair, colorHex: "#ef4444" },
 ];
 
 const SHAPE_MAP: Record<string, any> = {
   ghost: Ghost,
-  bottle: Beaker,
-  mouse: Mouse,
+  bottle: FlaskConical,
+  mouse: Rat,
   book: Book,
   chair: Armchair,
 };
@@ -217,7 +217,7 @@ export default function GhostBlitzGame() {
                 const Icon = SHAPE_MAP[item.shape];
                 return (
                   <div key={idx} className="flex flex-col items-center">
-                    <Icon className={`h-24 w-24 ${COLOR_CLASSES[item.color]}`} style={{ filter: `drop-shadow(0px 8px 16px rgba(0,0,0,0.2))` }} />
+                    <Icon strokeWidth={2.5} className={`h-24 w-24 ${COLOR_CLASSES[item.color]}`} style={{ filter: `drop-shadow(0px 8px 16px rgba(0,0,0,0.3))` }} />
                   </div>
                 );
               })}
@@ -240,10 +240,10 @@ export default function GhostBlitzGame() {
                     disabled={feedback !== null}
                     className="group flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/5 p-4 transition-all hover:-translate-y-2 hover:bg-white/10 active:scale-95 disabled:hover:translate-y-0 disabled:opacity-50"
                   >
-                    <div className={`rounded-full bg-zinc-900/50 p-4 shadow-inner`}>
-                      <Icon className={`h-10 w-10 sm:h-12 sm:w-12 ${COLOR_CLASSES[obj.color]}`} style={{ filter: `drop-shadow(0px 0px 10px ${obj.colorHex}40)` }} />
+                    <div className={`rounded-full bg-zinc-900/50 p-4 shadow-inner border border-white/5 group-hover:border-white/20`}>
+                      <Icon strokeWidth={2.5} className={`h-10 w-10 sm:h-12 sm:w-12 ${COLOR_CLASSES[obj.color]}`} style={{ filter: `drop-shadow(0px 0px 12px ${obj.colorHex}60)` }} />
                     </div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 group-hover:text-white sm:text-xs">{obj.label}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 group-hover:text-white sm:text-xs">{obj.label}</span>
                   </button>
                 );
               })}
