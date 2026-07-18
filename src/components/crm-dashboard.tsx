@@ -212,11 +212,18 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   const [connectionState, setConnectionState] = useState<"mock" | "supabase" | "checking">(
     initialData.source === "supabase" ? "supabase" : "mock",
   );
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const selectedConversationIdRef = useRef<number | null>(initialData.selectedConversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const shouldScrollRef = useRef(true);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldScrollRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    // Reset back to true for incoming messages
+    shouldScrollRef.current = true;
   }, [data.messages]);
 
   const normalizedConversations = useMemo(() => {
@@ -301,6 +308,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   async function loadConversation(conversationId: number) {
     selectedConversationIdRef.current = conversationId;
     setLoadingConversation(true);
+    setHasMoreHistory(true);
+    shouldScrollRef.current = true;
     try {
       await refreshSelectedConversation(conversationId);
       await refreshInboxList(conversationId);
@@ -343,6 +352,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
       }
 
       setDraft("");
+      shouldScrollRef.current = true;
       // Refresh the UI to show the message, or rely on realtime
       // We do a fast refresh to fetch it immediately if realtime takes a second
       setTimeout(() => refreshSelectedConversation(), 1000);
@@ -350,6 +360,53 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
       alert(`Error de red: ${err.message}`);
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function loadHistory() {
+    if (!data.selectedConversationId || data.messages.length === 0 || isLoadingHistory) return;
+    setIsLoadingHistory(true);
+    shouldScrollRef.current = false;
+    
+    try {
+      const client = createBrowserSupabaseClient();
+      if (!client) return;
+      
+      const oldestMessageTimestamp = data.messages[0]?.message_timestamp || data.messages[0]?.received_at;
+      if (!oldestMessageTimestamp) return;
+
+      const { data: olderMessages, error } = await client
+        .from("whatsapp_messages")
+        .select("id,instance_id,contact_id,conversation_id,event_fingerprint,provider_message_id,event_type,direction,chat_jid,sender_jid,receiver_jid,sender_name,message_type,message_text,caption,message_status,message_timestamp,received_at,raw_payload")
+        .eq("conversation_id", data.selectedConversationId)
+        .lt("message_timestamp", oldestMessageTimestamp)
+        .order("message_timestamp", { ascending: false })
+        .limit(30);
+
+      if (error) throw error;
+
+      if (!olderMessages || olderMessages.length < 30) {
+        setHasMoreHistory(false);
+      }
+
+      if (olderMessages && olderMessages.length > 0) {
+        const reversed = olderMessages.reverse().map((row) => ({
+          ...row,
+          from_me: row.direction === "outbound",
+        })).filter((row) => {
+          if (row.message_type !== "protocolMessage") return true;
+          return Boolean((row.message_text && row.message_text.trim()) || (row.caption && row.caption.trim()));
+        });
+
+        setData(prev => ({
+          ...prev,
+          messages: [...reversed, ...prev.messages]
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading history:", error);
+    } finally {
+      setIsLoadingHistory(false);
     }
   }
 
@@ -575,6 +632,22 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
             <div className="flex-1 overflow-y-auto p-4">
               {data.messages.length ? (
                 <div className="space-y-4">
+                  {hasMoreHistory ? (
+                    <div className="flex justify-center pb-4">
+                      <button 
+                        onClick={() => loadHistory()} 
+                        disabled={isLoadingHistory}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-zinc-300 hover:bg-white/10 transition disabled:opacity-50"
+                      >
+                        {isLoadingHistory ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                        {isLoadingHistory ? "Cargando..." : "Cargar mensajes anteriores"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-center pb-4">
+                      <span className="text-xs text-zinc-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">Inicio de la conversación</span>
+                    </div>
+                  )}
                   {data.messages.map((message) => {
                     const outgoing = message.from_me ?? message.direction === "outbound";
                     const direction = outgoing ? "Salida" : "Entrada";
