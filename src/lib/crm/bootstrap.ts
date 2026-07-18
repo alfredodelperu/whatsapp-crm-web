@@ -26,7 +26,7 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
     conversationId
       ? supabase
           .from("whatsapp_messages")
-          .select("id,instance_id,contact_id,conversation_id,event_fingerprint,provider_message_id,event_type,direction,chat_jid,sender_jid,receiver_jid,sender_name,message_type,message_text,caption,message_status,message_timestamp,received_at")
+          .select("id,instance_id,contact_id,conversation_id,event_fingerprint,provider_message_id,event_type,direction,chat_jid,sender_jid,receiver_jid,sender_name,message_type,message_text,caption,message_status,message_timestamp,received_at,raw_payload")
           .eq("conversation_id", conversationId)
           .order("message_timestamp", { ascending: true })
           .limit(200)

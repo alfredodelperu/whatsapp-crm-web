@@ -47,6 +47,7 @@ export type MessageRow = {
   message_status: string;
   message_timestamp: string | null;
   received_at: string;
+  raw_payload?: any;
   from_me?: boolean;
 };
 
