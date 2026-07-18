@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { BootstrapPayload, InboxConversation, MessageRow } from "@/lib/crm/types";
-import { AlertCircle, Bot, CheckCheck, Clock3, Inbox, MessageSquarePlus, RefreshCcw, Search, ShieldCheck, Sparkles, Users, Send, Loader2 } from "lucide-react";
+import { AlertCircle, Bot, CheckCheck, Clock3, Inbox, MessageSquarePlus, RefreshCcw, Search, ShieldCheck, Sparkles, Users, Send, Loader2, File as FileIcon, Download } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
   open: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
@@ -100,47 +100,96 @@ function safePreviewText(value?: string | null) {
 }
 
 function renderMessageBody(message: MessageRow) {
-  const directText = message.message_text?.trim() || message.caption?.trim();
+  let directText = message.message_text?.trim() || message.caption?.trim();
+  const type = message.message_type?.toLowerCase() || "";
   
-  let base64Image = null;
-  let mimetype = "image/jpeg";
+  let base64Data = null;
+  let mimetype = "";
+  let fileName = "archivo";
   
   if (message.raw_payload && typeof message.raw_payload === "object") {
     const payload = message.raw_payload as any;
     
-    // Check if it's an image or video/audio that might have a thumbnail/base64
-    if (message.message_type?.toLowerCase().includes("image")) {
-       if (payload.data?.base64) {
-         base64Image = payload.data.base64;
-       } else if (payload.message?.base64) {
-         base64Image = payload.message.base64;
-       } else if (payload.data?.message?.base64) {
-         base64Image = payload.data.message.base64;
-       } else if (payload.data?.message?.imageMessage?.base64) {
-         base64Image = payload.data.message.imageMessage.base64;
-       }
-       
-       if (payload.data?.message?.imageMessage?.mimetype) {
-         mimetype = payload.data.message.imageMessage.mimetype;
-       }
+    // Attempt to extract base64 generically from the payload structure
+    base64Data = payload.data?.base64 || payload.message?.base64 || payload.data?.message?.base64;
+    
+    const msgData = payload.data?.message || {};
+    
+    if (type.includes("image") && msgData.imageMessage) {
+      base64Data = base64Data || msgData.imageMessage.base64;
+      mimetype = msgData.imageMessage.mimetype || "image/jpeg";
+    } else if (type.includes("video") && msgData.videoMessage) {
+      base64Data = base64Data || msgData.videoMessage.base64;
+      mimetype = msgData.videoMessage.mimetype || "video/mp4";
+    } else if ((type.includes("audio") || type.includes("ptt")) && msgData.audioMessage) {
+      base64Data = base64Data || msgData.audioMessage.base64;
+      mimetype = msgData.audioMessage.mimetype || "audio/ogg";
+    } else if (type.includes("document") && msgData.documentMessage) {
+      base64Data = base64Data || msgData.documentMessage.base64;
+      mimetype = msgData.documentMessage.mimetype || "application/octet-stream";
+      fileName = msgData.documentMessage.fileName || fileName;
+    } else if (type.includes("sticker") && msgData.stickerMessage) {
+      base64Data = base64Data || msgData.stickerMessage.base64;
+      mimetype = msgData.stickerMessage.mimetype || "image/webp";
     }
   }
 
+  // Hide fixed generic texts if we successfully extracted the media
+  if (type.includes("sticker") && directText === "🏷️ Sticker" && base64Data) {
+    directText = "";
+  }
+  if (type.includes("document") && directText?.startsWith("📎 ") && base64Data) {
+    fileName = directText.replace("📎 ", "");
+    directText = ""; // Just show the document box
+  }
+  
+  const getSrc = () => base64Data?.startsWith("data:") ? base64Data : `data:${mimetype};base64,${base64Data}`;
+
   return (
     <div className="flex flex-col gap-2">
-      {base64Image ? (
+      {base64Data && (type.includes("image") || type.includes("sticker")) ? (
         <img 
-          src={base64Image.startsWith("data:") ? base64Image : `data:${mimetype};base64,${base64Image}`} 
+          src={getSrc()} 
           alt="Media adjunta" 
-          className="max-h-[250px] w-auto max-w-full rounded-xl object-contain shadow-md" 
+          className={`w-auto max-w-full rounded-xl object-contain shadow-md ${type.includes("sticker") ? "max-h-[150px] bg-transparent" : "max-h-[300px]"}`} 
         />
+      ) : null}
+      
+      {base64Data && type.includes("video") ? (
+        <video 
+          controls 
+          src={getSrc()} 
+          className="max-h-[250px] w-full rounded-xl shadow-md bg-black"
+        />
+      ) : null}
+      
+      {base64Data && (type.includes("audio") || type.includes("ptt")) ? (
+        <audio 
+          controls 
+          src={getSrc()} 
+          className="w-full max-w-[250px] h-10"
+        />
+      ) : null}
+      
+      {base64Data && type.includes("document") ? (
+        <a 
+          href={getSrc()} 
+          download={fileName}
+          className="flex items-center gap-2 rounded-lg bg-zinc-800 p-3 text-sm hover:bg-zinc-700 transition-colors"
+        >
+          <div className="rounded bg-indigo-500/20 p-2 text-indigo-400">
+             <FileIcon className="h-5 w-5" />
+          </div>
+          <span className="font-medium text-zinc-200 line-clamp-1">{fileName}</span>
+          <Download className="h-4 w-4 text-zinc-400 ml-auto" />
+        </a>
       ) : null}
       
       {directText ? (
         <span className="whitespace-pre-wrap leading-6">{directText}</span>
       ) : null}
       
-      {!base64Image && !directText ? (
+      {!base64Data && !directText ? (
          <span className="italic opacity-60">
            {message.message_type === "protocolMessage" ? "Mensaje del sistema" : (message.message_type ? `[${message.message_type}]` : "[sin texto]")}
          </span>
