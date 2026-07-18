@@ -5,14 +5,14 @@ import {
   Brain, Heart, Play, RotateCcw, Trophy, AlertCircle, CheckCircle2,
   Cat, Dog, Rabbit, Turtle, Bird, Fish, Snail, Bug, 
   Car, Bus, Train, Plane, Rocket, Bike, Sailboat,
-  Apple, Banana, Cherry, Grape, Carrot, Mushroom,
+  Apple, Banana, Cherry, Grape, Carrot, Coffee,
   Sun, Moon, Star, Cloud, Snowflake, Flame, Droplet
 } from "lucide-react";
 
 const ICON_POOL = [
   Cat, Dog, Rabbit, Turtle, Bird, Fish, Snail, Bug, 
   Car, Bus, Train, Plane, Rocket, Bike, Sailboat,
-  Apple, Banana, Cherry, Grape, Carrot, Mushroom,
+  Apple, Banana, Cherry, Grape, Carrot, Coffee,
   Sun, Moon, Star, Cloud, Snowflake, Flame, Droplet
 ];
 
