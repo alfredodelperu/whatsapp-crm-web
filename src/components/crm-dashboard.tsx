@@ -111,9 +111,10 @@ function renderMessageBody(message: MessageRow) {
     const payload = message.raw_payload as any;
     
     // Attempt to extract base64 generically from the payload structure
-    base64Data = payload.data?.base64 || payload.message?.base64 || payload.data?.message?.base64;
+    base64Data = payload.data?.base64 || payload.message?.base64 || payload.data?.message?.base64 || payload.data?.Message?.base64 || payload.Message?.base64;
     
-    const msgData = payload.data?.message || {};
+    // Some payloads use lowercase "message", some use uppercase "Message"
+    const msgData = payload.data?.message || payload.data?.Message || payload.message || payload.Message || {};
     
     if (type.includes("image") && msgData.imageMessage) {
       base64Data = base64Data || msgData.imageMessage.base64;
