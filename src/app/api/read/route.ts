@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const { error } = await supabase
       .from("whatsapp_conversations")
       .update({ unread_count: 0, updated_at: new Date().toISOString() })
-      .eq("conversation_id", conversationId);
+      .eq("id", conversationId);
 
     if (error) {
       console.error("Failed to mark conversation as read:", error);
