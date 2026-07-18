@@ -101,9 +101,52 @@ function safePreviewText(value?: string | null) {
 
 function renderMessageBody(message: MessageRow) {
   const directText = message.message_text?.trim() || message.caption?.trim();
-  if (directText) return directText;
-  if (message.message_type === "protocolMessage") return "Mensaje del sistema";
-  return message.message_type ? `[${message.message_type}]` : "[sin texto]";
+  
+  let base64Image = null;
+  let mimetype = "image/jpeg";
+  
+  if (message.raw_payload && typeof message.raw_payload === "object") {
+    const payload = message.raw_payload as any;
+    
+    // Check if it's an image or video/audio that might have a thumbnail/base64
+    if (message.message_type?.toLowerCase().includes("image")) {
+       if (payload.data?.base64) {
+         base64Image = payload.data.base64;
+       } else if (payload.message?.base64) {
+         base64Image = payload.message.base64;
+       } else if (payload.data?.message?.base64) {
+         base64Image = payload.data.message.base64;
+       } else if (payload.data?.message?.imageMessage?.base64) {
+         base64Image = payload.data.message.imageMessage.base64;
+       }
+       
+       if (payload.data?.message?.imageMessage?.mimetype) {
+         mimetype = payload.data.message.imageMessage.mimetype;
+       }
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {base64Image ? (
+        <img 
+          src={base64Image.startsWith("data:") ? base64Image : `data:${mimetype};base64,${base64Image}`} 
+          alt="Media adjunta" 
+          className="max-h-[250px] w-auto max-w-full rounded-xl object-contain shadow-md" 
+        />
+      ) : null}
+      
+      {directText ? (
+        <span className="whitespace-pre-wrap leading-6">{directText}</span>
+      ) : null}
+      
+      {!base64Image && !directText ? (
+         <span className="italic opacity-60">
+           {message.message_type === "protocolMessage" ? "Mensaje del sistema" : (message.message_type ? `[${message.message_type}]` : "[sin texto]")}
+         </span>
+      ) : null}
+    </div>
+  );
 }
 
 export function CrmDashboard({ initialData }: { initialData: BootstrapPayload }) {
@@ -487,7 +530,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                             <span>·</span>
                             <span>{formatTime(message.message_timestamp ?? message.received_at)}</span>
                           </div>
-                          <p className="whitespace-pre-wrap text-sm leading-6">{body}</p>
+                          <div className="text-sm">{body}</div>
                           <div className="mt-2 flex items-center justify-end gap-1 text-[11px] opacity-80">
                             {outgoing ? <CheckCheck className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
                             <span className="uppercase tracking-[0.16em]">{message.message_status || "received"}</span>
