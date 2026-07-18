@@ -115,6 +115,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isSyncingLabels, setIsSyncingLabels] = useState(false);
   const [connectionState, setConnectionState] = useState<"mock" | "supabase" | "checking">(
     initialData.source === "supabase" ? "supabase" : "mock",
   );
@@ -259,6 +260,34 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     }
   }
 
+  async function handleSyncLabels() {
+    if (!activeConversation?.instance_name) {
+      alert("Selecciona primero una conversación para saber qué instancia sincronizar.");
+      return;
+    }
+    setIsSyncingLabels(true);
+    try {
+      const response = await fetch("/api/labels/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instance: activeConversation.instance_name }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Error desconocido" }));
+        alert(`Error al sincronizar etiquetas: ${err.error}`);
+        return;
+      }
+      const data = await response.json();
+      alert(`¡Éxito! Se sincronizaron ${data.synced} etiquetas desde Evolution GO a Supabase.`);
+      await refreshInboxList();
+      await refreshSelectedConversation();
+    } catch (err: any) {
+      alert(`Error de red: ${err.message}`);
+    } finally {
+      setIsSyncingLabels(false);
+    }
+  }
+
   useEffect(() => {
     const client = createBrowserSupabaseClient();
     if (!client) {
@@ -327,6 +356,14 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
               <ShieldCheck className="h-4 w-4" />
               Fuente: {data.source}
             </div>
+            <button
+              onClick={() => handleSyncLabels()}
+              disabled={isSyncingLabels}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 transition hover:bg-white/10 disabled:opacity-50"
+            >
+              {isSyncingLabels ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-emerald-400" />}
+              Sincronizar Etiquetas
+            </button>
             <button
               onClick={() => refreshSelectedConversation().catch(() => null)}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 transition hover:bg-white/10"
