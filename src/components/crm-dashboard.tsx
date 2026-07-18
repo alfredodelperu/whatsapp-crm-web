@@ -518,6 +518,15 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                           {conversation.is_group ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-200">grupo</span> : null}
                         </div>
                         <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{safePreviewText(conversation.last_message_text)}</p>
+                        {conversation.labels && conversation.labels.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {conversation.labels.map((lbl) => (
+                              <span key={lbl.id} className="rounded-md bg-purple-500/20 px-2 py-0.5 text-[10px] font-semibold text-purple-300 ring-1 ring-purple-500/30">
+                                {lbl.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                         <p className="mt-1 truncate text-[11px] text-zinc-500">{conversationSubtitle(conversation)}</p>
                       </div>
                       <div className="text-right text-[11px] text-zinc-500">
