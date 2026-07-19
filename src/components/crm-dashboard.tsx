@@ -18,12 +18,13 @@ const fmtDate = new Intl.DateTimeFormat("es-PE", {
 });
 
 function formatTime(value: string | null | undefined) {
-  if (!value) return "—";
-  try {
-    return fmtDate.format(new Date(value));
-  } catch {
-    return value;
-  }
+  if (!value) return "";
+  return fmtDate.format(new Date(value));
+}
+
+function getDisplayName(c: InboxConversation | null | undefined): string {
+  if (!c) return "Selecciona una conversación";
+  return c.title || c.push_name || c.display_name || c.phone_number || c.chat_jid || "Desconocido";
 }
 
 function badgeClass(status: string) {
@@ -212,6 +213,8 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   const [connectionState, setConnectionState] = useState<"mock" | "supabase" | "checking">(
     initialData.source === "supabase" ? "supabase" : "mock",
   );
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<InboxConversation[] | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const selectedConversationIdRef = useRef<number | null>(initialData.selectedConversationId);
@@ -256,26 +259,63 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
     [normalizedConversations, data.selectedConversationId],
   );
 
-  const filteredConversations = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return normalizedConversations;
+  useEffect(() => {
+    const term = query.trim();
+    if (!term) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
 
-    return normalizedConversations.filter((item) => {
-      const haystack = [
-        item.title,
-        item.display_name,
-        item.push_name,
-        item.phone_number,
-        item.chat_jid,
-        item.last_message_text,
-        item.status,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
-  }, [normalizedConversations, query]);
+    setIsSearching(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const client = createBrowserSupabaseClient();
+        if (!client) return;
+
+        const { data: searchData, error } = await client
+          .from("whatsapp_inbox")
+          .select("conversation_id,instance_id,instance_name,chat_jid,contact_jid,title,last_message_text,last_message_at,unread_count,status,assigned_to_user_id,phone_number,display_name,push_name,is_group")
+          .or(`title.ilike.%${term}%,display_name.ilike.%${term}%,push_name.ilike.%${term}%,phone_number.ilike.%${term}%,chat_jid.ilike.%${term}%,last_message_text.ilike.%${term}%`)
+          .order("last_message_at", { ascending: false, nullsFirst: false })
+          .limit(50);
+
+        if (!error && searchData) {
+          const conversationIds = searchData.map((c) => c.conversation_id);
+          if (conversationIds.length > 0) {
+            const { data: labelsData } = await client
+              .from("whatsapp_chat_labels")
+              .select("conversation_id, whatsapp_labels(id, name, color)")
+              .in("conversation_id", conversationIds);
+
+            if (labelsData) {
+              const labelsByConvId: Record<number, any[]> = {};
+              for (const item of labelsData) {
+                if (!labelsByConvId[item.conversation_id]) {
+                  labelsByConvId[item.conversation_id] = [];
+                }
+                if (item.whatsapp_labels) {
+                  labelsByConvId[item.conversation_id].push(item.whatsapp_labels);
+                }
+              }
+              for (const conv of searchData) {
+                (conv as any).labels = labelsByConvId[conv.conversation_id] || [];
+              }
+            }
+          }
+          setSearchResults(searchData as InboxConversation[]);
+        }
+      } catch (e) {
+        console.error("Search error", e);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  const displayConversations = searchResults ?? normalizedConversations;
 
   useEffect(() => {
     selectedConversationIdRef.current = data.selectedConversationId;
@@ -560,7 +600,10 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {filteredConversations.map((conversation) => {
+              {isSearching ? (
+                <div className="p-4 text-center text-sm text-zinc-400">Buscando en base de datos...</div>
+              ) : null}
+              {displayConversations.map((conversation) => {
                 const selected = conversation.conversation_id === data.selectedConversationId;
                 return (
                   <button
@@ -571,7 +614,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-white">{conversation.title ?? conversation.display_name ?? conversation.chat_jid}</p>
+                          <p className="font-medium text-white">{getDisplayName(conversation)}</p>
                           {conversation.is_group ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-200">grupo</span> : null}
                         </div>
                         <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{safePreviewText(conversation.last_message_text)}</p>
@@ -615,7 +658,7 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-emerald-300/80">Chat activo</p>
                 <h2 className="mt-1 text-xl font-semibold text-white">
-                  {activeConversation?.title ?? activeConversation?.display_name ?? activeConversation?.chat_jid ?? "Selecciona una conversación"}
+                  {getDisplayName(activeConversation)}
                 </h2>
                 <p className="mt-1 text-sm text-zinc-400">
                   {activeConversation ? `${activeConversation.instance_name} · ${activeConversation.chat_jid}` : "Vista vacía"}

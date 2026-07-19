@@ -22,7 +22,7 @@ export async function getBootstrapData(conversationId?: number): Promise<Bootstr
       .from("whatsapp_inbox")
       .select("conversation_id,instance_id,instance_name,chat_jid,contact_jid,title,last_message_text,last_message_at,unread_count,status,assigned_to_user_id,phone_number,display_name,push_name,is_group")
       .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(50),
+      .limit(100),
     conversationId
       ? supabase
           .from("whatsapp_messages")
