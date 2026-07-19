@@ -324,25 +324,53 @@ export function CrmDashboard({ initialData }: { initialData: BootstrapPayload })
   async function refreshInboxList(selectedConversationId = selectedConversationIdRef.current) {
     const response = await fetch(`/api/bootstrap`, { cache: "no-store" });
     const payload: BootstrapPayload = await response.json();
-    setData((current) => ({
-      ...current,
-      ...payload,
-      messages: current.messages,
-      selectedConversationId: selectedConversationId ?? current.selectedConversationId ?? payload.selectedConversationId,
-    }));
+    setData((current) => {
+      let newConversations = [...payload.conversations];
+      const selectedId = selectedConversationId ?? current.selectedConversationId;
+      if (selectedId) {
+        const hasSelected = newConversations.some(c => c.conversation_id === selectedId);
+        if (!hasSelected) {
+           const existing = current.conversations.find(c => c.conversation_id === selectedId);
+           if (existing) {
+             newConversations.push(existing);
+           }
+        }
+      }
+
+      return {
+        ...current,
+        ...payload,
+        conversations: newConversations,
+        messages: current.messages,
+        selectedConversationId: selectedId ?? payload.selectedConversationId,
+      };
+    });
   }
 
   async function refreshSelectedConversation(conversationId = selectedConversationIdRef.current) {
     if (!conversationId) return;
     const response = await fetch(`/api/bootstrap?conversationId=${conversationId}`, { cache: "no-store" });
     const payload: BootstrapPayload = await response.json();
-    setData((current) => ({
-      ...current,
-      ...payload,
-      conversations: payload.conversations.length ? payload.conversations : current.conversations,
-      messages: payload.messages,
-      selectedConversationId: conversationId,
-    }));
+    setData((current) => {
+      let newConversations = [...current.conversations];
+      if (payload.conversations.length > 0) {
+        const conv = payload.conversations[0];
+        const idx = newConversations.findIndex(c => c.conversation_id === conv.conversation_id);
+        if (idx >= 0) {
+          newConversations[idx] = conv;
+        } else {
+          newConversations.push(conv);
+        }
+      }
+
+      return {
+        ...current,
+        ...payload,
+        conversations: newConversations,
+        messages: payload.messages,
+        selectedConversationId: conversationId,
+      };
+    });
   }
 
   async function loadConversation(conversationId: number) {
